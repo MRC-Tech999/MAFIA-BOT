@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAFIA-MD Session Manager</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); max-width: 600px; width: 90%; text-align: center; }
+        h1 { color: #28a745; margin-bottom: 20px; font-size: 2.2em; }
+        p.note { font-size: 0.95em; color: #666; margin-bottom: 25px; line-height: 1.5; }
+        label { display: block; text-align: left; margin-bottom: 8px; font-weight: bold; color: #555; }
+        input[type="text"], textarea { width: calc(100% - 22px); padding: 12px; margin-bottom: 20px; border: 1px solid #ced4da; border-radius: 8px; font-size: 1em; transition: border-color 0.3s; }
+        input[type="text"]:focus, textarea:focus { border-color: #28a745; outline: none; box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25); }
+        textarea { min-height: 120px; resize: vertical; }
+        button { background-color: #28a745; color: white; padding: 14px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: bold; transition: background-color 0.3s ease, transform 0.2s ease; width: 100%; }
+        button:hover { background-color: #218838; transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+        #responseMessage { margin-top: 25px; padding: 15px; border-radius: 8px; font-weight: bold; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { background-color: #e0f7fa; color: #007bff; border: 1px solid #b3e5fc; }
+        .footer { margin-top: 30px; font-size: 0.85em; color: #888; }
+        .footer a { color: #28a745; text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Connect Your MAFIA-MD Session</h1>
+        <p class="note">
+            Paste your session ID (the Mega.nz file URL starting with `MAFIA~MD~`) below.
+            Each unique ID will create a new, independent WhatsApp session for your bot.
+        </p>
+        <form id="sessionForm">
+            <label for="sessionId">Session ID (Mega.nz URL):</label>
+            <textarea id="sessionId" name="sessionId" placeholder="e.g., MAFIA~MD~YOUR_MEGA_FILE_ID_HERE" required></textarea>
+
+            <label for="userId">Your Unique Identifier:</label>
+            <input type="text" id="userId" name="userId" placeholder="e.g., my_bot_1, JohnDoe_session" required>
+            <p class="note">This ID helps you manage your session. Use something unique and memorable.</p>
+
+            <button type="submit">Start Session</button>
+        </form>
+        <div id="responseMessage"></div>
+        <div class="footer">
+            Powered by MAFIA-MD | <a href="https://github.com/MRC-Tech999/MAFIA-MD" target="_blank">GitHub Repo</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('sessionForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const sessionIdInput = document.getElementById('sessionId');
+            const userIdInput = document.getElementById('userId');
+            const responseMessageDiv = document.getElementById('responseMessage');
+            const submitButton = document.querySelector('button[type="submit"]');
+
+            const sessionDataUrl = sessionIdInput.value.trim();
+            const userId = userIdInput.value.trim();
+
+            // Basic client-side validation
+            if (!sessionDataUrl) {
+                responseMessageDiv.className = 'error';
+                responseMessageDiv.textContent = 'Please enter your Session ID.';
+                return;
+            }
+            if (!userId) {
+                responseMessageDiv.className = 'error';
+                responseMessageDiv.textContent = 'Please enter a Unique Identifier for your session.';
+                return;
+            }
+            if (!sessionDataUrl.startsWith('MAFIA~MD~')) {
+                responseMessageDiv.className = 'error';
+                responseMessageDiv.textContent = 'Invalid Session ID format. It should start with "MAFIA~MD~".';
+                return;
+            }
+
+            // Show loading state
+            responseMessageDiv.className = 'loading';
+            responseMessageDiv.textContent = 'Connecting... This may take a moment.';
+            submitButton.disabled = true; // Disable button during submission
+
+            try {
+                const response = await fetch('/start-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId: userId, sessionDataUrl: sessionDataUrl })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    responseMessageDiv.className = 'success';
+                    responseMessageDiv.textContent = `Success! Session for "${data.userId}" started. Check your WhatsApp.`;
+                    sessionIdInput.value = ''; // Clear form
+                    // userIdInput.value = ''; // Keep userId for convenience if user wants to add another session
+                } else {
+                    responseMessageDiv.className = 'error';
+                    responseMessageDiv.textContent = `Error: ${data.message || data.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                responseMessageDiv.className = 'error';
+                responseMessageDiv.textContent = `Network error: ${error.message}. Please ensure the server is running.`;
+            } finally {
+                submitButton.disabled = false; // Re-enable button
+            }
+        });
+    </script>
+</body>
+</html>
